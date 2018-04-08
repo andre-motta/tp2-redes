@@ -80,30 +80,28 @@ def sent(tcp, infile):
 		st = state
 		if(st == 0 or st == 2):
 			msg = infile.read(2**16 - 1)
-			createFrame(msg, id, 0)
+			frame = createFrame(msg, id, 0)
+			frame = base64.encode(frame)
+			#keep frame somewhere and have to keep the id of it to confirm
 			if(msg != ""):
 				setstate(1)
-				print(mode, "send", msg, st)
-				msg = struct.pack('!1s', msg.encode('ascii', 'ignore'))				
+				msg = struct.pack('!'+len(frame)+'s', frame)
 				tcp.send(msg)
 
 		if(st == 2 or st == 3):
-			setstate(2)
-			print(mode, "send", ";", st)
-			msg = struct.pack('!1s', (";").encode('ascii', 'ignore'))			
+			frame = createFrame("", confirmId, 1)
+			frame = base64.encode(frame)
+			msg = struct.pack('!'+len(frame)+'s', )
 			tcp.send(msg)
 
 def receive(tcp, outfile):
 	while True:
-		msg = tcp.recv(1)
-		msg = struct.unpack('!1s', msg)[0]
-		st = state
+		msg = tcp.recv(16)
+		msg = struct.unpack('!16s', msg)[0]
 		msg = str(msg, 'utf-8')
 		if(msg == ";"):
-			print(mode, "rcv", msg, st)
 			setstate(-1)
 		else:
-			print(mode, "rcv", msg, st)
 			outfile.write(msg)
 			outfile.flush()
 			setstate(-2)
