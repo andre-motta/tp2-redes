@@ -61,8 +61,9 @@ def calcChecksum(frame):
 	  checksum += frame[len(frame)-1]*256
 	  checksum = checksum if(checksum//(2**16) == 0) else checksum%(2**16) +1
 
-	frame[10:] = bytearray([checksum//256, checksum%256])
-	return frame
+	frame[10:11] = bytearray([checksum//256])
+	frame[11:12] = bytearray([checksum%256])
+	return frame[:]
 
 
 def createFrame(msg, id, flag):
@@ -73,38 +74,63 @@ def createFrame(msg, id, flag):
 	frame[12:] = bytearray([0]) if(id == 0) else bytearray([1])
 	frame[13:] = bytearray([0]) if(flag == 0) else bytearray([128])
 	frame[14:] = msg[:]
+	print(frame)
 	frame = calcChecksum(frame)
+	return frame[:]
 
 def sent(tcp, infile):
 	while True:
 		st = state
 		if(st == 0 or st == 2):
 			msg = infile.read(2**16 - 1)
-			frame = createFrame(msg, id, 0)
-			frame = base64.encode(frame)
-			#keep frame somewhere and have to keep the id of it to confirm
 			if(msg != ""):
+				print(msg)
+				frame = createFrame(msg, 0, 0) # we have to keep somewhere the id of the new package
+				print(frame)
+				frame = base64.b16encode(frame)
+				print(frame)
+				#keep frame somewhere and have to keep the id of it to confirm
 				setstate(1)
-				msg = struct.pack('!'+len(frame)+'s', frame)
-				tcp.send(msg)
+				tcp.send(frame)
 
 		if(st == 2 or st == 3):
-			frame = createFrame("", confirmId, 1)
-			frame = base64.encode(frame)
+			frame = createFrame("", 0, 1)
+			frame = base64.b16encode(frame)
 			msg = struct.pack('!'+len(frame)+'s', )
 			tcp.send(msg)
+
+def receiveframe(sync):
+	msg = tcp.recv(12) # recebendo resto do cabeçalho
+	msg = struct.unpack('!12s', msg)[0]
+	msg = base64.b16decode(msg)
+	sync[8:] = msg
+	length = sync[8]*256 + sync[9]
+	print(sync, length)
+
+	msg = tcp.recv(length*2) #recebendo resto do arquivo se tudo estiver certo, na prática(sem forçar erros), estará, na teoria...
+	msg = struct.unpack('!'+ str(2*length) +'s', msg)[0]
+	msg = base64.b16decode(msg)
+	sync[14:] = msg
+	print(sync)
+
+	sync = calcChecksum(sync)
+	print(sync)
 
 def receive(tcp, outfile):
 	while True:
 		msg = tcp.recv(16)
 		msg = struct.unpack('!16s', msg)[0]
-		msg = str(msg, 'utf-8')
-		if(msg == ";"):
+		sync = bytearray([220, 192, 35, 194, 220, 192, 35, 194])
+		msg = base64.b16decode(msg)
+		if(sync == msg):
+			print("begin of package")
+			receiveframe(sync)
+		'''if(msg == ";"):
 			setstate(-1)
 		else:
 			outfile.write(msg)
 			outfile.flush()
-			setstate(-2)
+			setstate(-2)'''
 
 threading.Thread(target = receive, args = (tcp, outfile, )).start()
 threading.Thread(target = sent, args = (tcp, infile, )).start()
