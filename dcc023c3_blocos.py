@@ -60,9 +60,10 @@ def calcChecksum(frame):
 	if(len(frame)%2 != 0):
 	  checksum += frame[len(frame)-1]*256
 	  checksum = checksum if(checksum//(2**16) == 0) else checksum%(2**16) +1
-
+	checksum = checksum ^ 0xffff
 	frame[10:11] = bytearray([checksum//256])
 	frame[11:12] = bytearray([checksum%256])
+
 	return frame[:]
 
 
