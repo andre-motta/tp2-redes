@@ -26,9 +26,6 @@ sendConfirm = 0 # amount of confirms that must be sent
 confirmsToSent = []
 confirmReceived = 0 #confirm of a given package has been received
 lastIdReceived = 1 #last data id received
-lastPackReceived = None # id and checksum from last package received
-ackReceived = 1
-
 
 lockidsend = threading.Lock()
 lockconf = threading.Lock()
@@ -135,7 +132,7 @@ def sent(tcp, infile):
 			aux = changeConfToSent(0, None)
 			frame = createFrame("", aux, 1)
 			frame = base64.b16encode(frame)
-			tcp.send(msg)
+			tcp.send(frame)
 
 def receiveframe(sync):
 	msg = tcp.recv(12) # recebendo resto do cabeçalho
@@ -159,7 +156,9 @@ def receiveframe(sync):
 
 
 def receive(tcp, outfile):
-	global lastPackReceived
+	lastPackReceived = None # id and checksum from last package received
+	ackReceived = 1
+
 	while True:
 		msg = tcp.recv(8)
 		msg = struct.unpack('!8s', msg)[0]
@@ -177,7 +176,7 @@ def receive(tcp, outfile):
 
 			if(check != False): # checksum is valid
 				if(ret[13] == 128):# if it's ack
-					if(ackReceived is None or ret[12] != ackReceived): # hasn't received this package confirmation yet
+					if(ret[12] != ackReceived): # hasn't received this package confirmation yet
 						setConf(1)
 						ackReceived = ret[12]
 				else: # if it's data
