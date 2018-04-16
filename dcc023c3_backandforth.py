@@ -21,50 +21,50 @@ else:
 	tcp, address = tcp.accept()
 
 
-idsend = 0 #id of what is being sent noe
+idsend = 0 #id of what is being sent now
 sendConfirm = 0 # amount of confirms that must be sent
 confirmsToSent = []
 confirmReceived = 0 #confirm of a given package has been received
-eof = 0 #indicates that the file has ended
 lastIdReceived = 1 #last data id received
-lastFrameSent = None
 lastPackReceived = None # id and checksum from last package received
 ackReceived = 1
 
 
 lockidsend = threading.Lock()
 lockconf = threading.Lock()
-lockconfsend = threading.Lock()
 lockconfToSent = threading.Lock()
 
 def setIdsend():
-	lock.acquire()
+	global idsend
+	lockidsend.acquire()
 	try:
 		idsend = (idsend+1)%2
 	finally:
-		lock.release()
+		lockidsend.release()
 
 def setConf(val):
-	lock.acquire()
+	global confirmReceived
+	lockconf.acquire()
 	try:
 		confirmReceived = val
 	finally:
-		lock.release()
+		lockconf.release()
 
 def changeConfToSent(val, add):
-	lock.acquire()
+	global confirmsToSent
+	global sendConfirm
+	lockconfToSent.acquire()
 	try:
 		if(val == 0):
-			aux = confirmsToSent[0]
-			confirmsToSent[:] = confirmsToSent[1:]
+			aux = confirmsToSent.pop(0)
 			sendConfirm =  sendConfirm - 1
 			return aux
 		else:
-			confirmsToSent[len(confirmsToSent)] = add
-			confirmsToSent = confirmsToSent + 1
+			confirmsToSent.append(add)
+			sendConfirm = sendConfirm + 1
 			return add
 	finally:
-		lock.release()
+		lockconfToSent.release()
 
 def calcChecksum(frame):
 	checksum = 0
@@ -90,14 +90,19 @@ def createFrame(msg, id, flag):
 	frame[10:] = bytearray([0, 0])
 	frame[12:] = bytearray([0]) if(id == 0) else bytearray([1])
 	frame[13:] = bytearray([0]) if(flag == 0) else bytearray([128])
-	frame[14:] = msg[:]
+	if(msg != ""):
+		frame[14:] = msg[:]
 	
 	frame = calcChecksum(frame)
 	return frame[:]
 
 
-passedTime = time.clock() - 1.0
+
 def sent(tcp, infile):
+	lastFrameSent = None
+	passedTime = time.clock() - 1.0
+	eof = 0 #indicates that the file has ended
+
 	while True:
 		if((time.clock() - passedTime) >= 1.0 and confirmReceived == 0): # if hasn't received confirmation and timesout
 			if(lastFrameSent is None): # only in the first time
@@ -128,7 +133,7 @@ def sent(tcp, infile):
 		
 		if(sendConfirm > 0):
 			aux = changeConfToSent(0, None)
-			frame = createFrame("", aux[0], 1)
+			frame = createFrame("", aux, 1)
 			frame = base64.b16encode(frame)
 			tcp.send(msg)
 
@@ -139,7 +144,9 @@ def receiveframe(sync):
 	sync[8:] = msg
 	length = sync[8]*256 + sync[9]
 	
-	msg = tcp.recv(length*2) #recebendo resto do arquivo se tudo estiver certo, na prática(sem forçar erros), estará, na teoria...
+	msg = tcp.recv(length*2) # receiving data
+	while(len(msg) != 2*length):
+		msg =  msg + tcp.recv(length*2 - len(msg)) # concat missing parts
 	msg = struct.unpack('!'+ str(2*length) +'s', msg)[0]
 	msg = base64.b16decode(msg)
 	sync[14:] = msg
@@ -148,10 +155,11 @@ def receiveframe(sync):
 	sync = calcChecksum(sync)
 	if (sync[10] == 0 and sync[11] == 0):
 		return (sync, backcheck)
-	return (sync, false)
+	return (sync, False)
 
 
 def receive(tcp, outfile):
+	global lastPackReceived
 	while True:
 		msg = tcp.recv(8)
 		msg = struct.unpack('!8s', msg)[0]
@@ -167,7 +175,7 @@ def receive(tcp, outfile):
 			sync[4:] = sync[:]
 			ret, check = receiveframe(sync)
 
-			if(check != false): # checksum is valid
+			if(check != False): # checksum is valid
 				if(ret[13] == 128):# if it's ack
 					if(ackReceived is None or ret[12] != ackReceived): # hasn't received this package confirmation yet
 						setConf(1)
@@ -176,14 +184,14 @@ def receive(tcp, outfile):
 					if(lastPackReceived is None): #hasn't receveid a package yet
 						changeConfToSent(1, sync[12])
 						lastPackReceived = [sync[12], sync[10:12]]
-						outfile.write("".join(chr(l) for l in sync[14:]))
+						outfile.write(sync[14:])
 						outfile.flush()
-					else if(sync[12] == lastPackReceived[0] and sync[10:12] == lastPackReceived[1]): #retransmission
+					elif(sync[12] == lastPackReceived[0] and sync[10:12] == lastPackReceived[1]): # retransmission
 						changeConfToSent(1, sync[12])
 					else: # new package
 						changeConfToSent(1, sync[12])
 						lastPackReceived = [sync[12], sync[10:12]]
-						outfile.write("".join(chr(l) for l in sync[14:]))
+						outfile.write(sync[14:])
 						outfile.flush()
 
 threading.Thread(target = receive, args = (tcp, outfile, )).start()
