@@ -1,5 +1,5 @@
 # !/usr/bin/env python3
-import socket, struct, threading, sys, base64, time
+import socket, struct, threading, sys, base64, time, random
 
 mode = sys.argv[1]
 infile = open(sys.argv[3], 'rb')
@@ -136,7 +136,9 @@ def sent(tcp, infile):
             frame = createFrame("", aux, 1)
             frame = base64.b16encode(frame)
             #not sending ack
-            #tcp.send(frame)
+            randomNumber = random.randint(1, 6)
+            if randomNumber == 6:
+                tcp.send(frame)
             #not sending ack
 
 def receiveframe(sync):

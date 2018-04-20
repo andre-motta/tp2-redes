@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import socket, struct, threading, sys, base64, time, random
+import socket, struct, threading, sys, base64, time
 
 mode = sys.argv[1]
 infile = open(sys.argv[3], 'rb')
@@ -86,11 +86,7 @@ def calcChecksum(frame):
 def createFrame(msg, id, flag):
     frame = bytearray([220, 192, 35, 194])
     frame[4:] = frame[:]
-    randomNumber = random.randint(1, 6)
-    if randomNumber == 6:
-        frame[8:] = bytearray([0, 0]) if (msg == "") else bytearray([len(msg) // 256, len(msg) % 256])
-    else:
-        frame[8:] = bytearray([0, 0]) if (msg == "") else bytearray([len(msg) // 256, len(msg) % 128])
+    frame[8:] = bytearray([0, 0]) if (msg == "") else bytearray([len(msg) // 256, len(msg) % 256])
     frame[10:] = bytearray([0, 0])
     frame[12:] = bytearray([0]) if (id == 0) else bytearray([1])
     frame[13:] = bytearray([0]) if (flag == 0) else bytearray([128])
@@ -109,6 +105,7 @@ def sent(tcp, infile):
     while True:
         if ((
                 time.clock() - passedTime) >= 1.0 and confirmReceived == 0):  # if hasn't received confirmation and timesout
+            print('timeout')
             if (lastFrameSent is None):  # only in the first time
                 msg = infile.read(2 ** 16 - 1)
                 if (msg != ""):
@@ -181,7 +178,8 @@ def receive(tcp, outfile):
         if (sync == msg):
             sync[4:] = sync[:]
             ret, check = receiveframe(sync)
-
+            if (check == False):
+                print('failedchecksum')
             if (check != False):  # checksum is valid
                 if (ret[13] == 128):  # if it's ack
                     if (ret[12] != ackReceived):  # hasn't received this package confirmation yet

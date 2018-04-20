@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import socket, struct, threading, sys, base64, time
+import socket, struct, threading, sys, base64, time, random
 
 mode = sys.argv[1]
 infile = open(sys.argv[3], 'rb')
@@ -76,7 +76,11 @@ def calcChecksum(frame):
         checksum += frame[len(frame) - 1] * 256
         checksum = checksum if (checksum // (2 ** 16) == 0) else checksum % (2 ** 16) + 1
 
-    checksum = checksum ^ 0xffff
+    randomNumber = random.randint(1, 6)
+    if randomNumber == 6:
+        checksum = checksum ^ 0xffff
+    else:
+        checksum = checksum ^ 0xfffa
     frame[10:11] = bytearray([checksum // 256])
     frame[11:12] = bytearray([checksum % 256])
 
@@ -109,9 +113,6 @@ def sent(tcp, infile):
                 msg = infile.read(2 ** 16 - 1)
                 if (msg != ""):
                     frame = createFrame(msg, idsend, 0)
-                    #Destroying the checksum
-                    frame[10:12] = bytearray[0xffff]
-                    #
                     frame = base64.b16encode(frame)
                     lastFrameSent = frame
                     tcp.send(frame)
