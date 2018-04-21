@@ -187,7 +187,7 @@ def receive(tcp, outfile):
 						outfile.flush()
 					elif(sync[12] == lastPackReceived[0] and sync[10:12] == lastPackReceived[1]): # retransmission
 						changeConfToSent(1, sync[12])
-					else: # new package
+					elif(sync[12] != lastPackReceived[0]): # new package
 						changeConfToSent(1, sync[12])
 						lastPackReceived = [sync[12], sync[10:12]]
 						outfile.write(sync[14:])
