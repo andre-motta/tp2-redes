@@ -105,7 +105,6 @@ def sent(tcp, infile):
     while True:
         if ((
                 time.clock() - passedTime) >= 1.0 and confirmReceived == 0):  # if hasn't received confirmation and timesout
-            print('timeout')
             if (lastFrameSent is None):  # only in the first time
                 msg = infile.read(2 ** 16 - 1)
                 if (msg != ""):
@@ -178,8 +177,7 @@ def receive(tcp, outfile):
         if (sync == msg):
             sync[4:] = sync[:]
             ret, check = receiveframe(sync)
-            if (check == False):
-                print('failedchecksum')
+
             if (check != False):  # checksum is valid
                 if (ret[13] == 128):  # if it's ack
                     if (ret[12] != ackReceived):  # hasn't received this package confirmation yet
@@ -193,7 +191,7 @@ def receive(tcp, outfile):
                         outfile.flush()
                     elif (sync[12] == lastPackReceived[0] and sync[10:12] == lastPackReceived[1]):  # retransmission
                         changeConfToSent(1, sync[12])
-                    else:  # new package
+                    elif (sync[12] != lastPackReceived[0]):  # new package
                         changeConfToSent(1, sync[12])
                         lastPackReceived = [sync[12], sync[10:12]]
                         outfile.write(sync[14:])
