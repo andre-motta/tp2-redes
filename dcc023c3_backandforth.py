@@ -77,7 +77,7 @@ def calcChecksum(frame):
 	frame[10:11] = bytearray([checksum//256])
 	frame[11:12] = bytearray([checksum%256])
 
-	return frame[:]
+    	return frame[:]
 
 
 def createFrame(msg, id, flag):
@@ -137,7 +137,7 @@ def sent(tcp, infile):
 def receiveframe(sync):
 	msg = tcp.recv(12) # recebendo resto do cabeçalho
 	msg = struct.unpack('!12s', msg)[0]
-	msg = base64.b16decode(msg)
+	msg = base64.b16decode(msg, True)
 	sync[8:] = msg
 	length = sync[8]*256 + sync[9]
 	
@@ -145,7 +145,7 @@ def receiveframe(sync):
 	while(len(msg) != 2*length):
 		msg =  msg + tcp.recv(length*2 - len(msg)) # concat missing parts
 	msg = struct.unpack('!'+ str(2*length) +'s', msg)[0]
-	msg = base64.b16decode(msg)
+	msg = base64.b16decode(msg, True)
 	sync[14:] = msg
 	
 	backcheck = sync[10:12]
@@ -163,13 +163,13 @@ def receive(tcp, outfile):
 		msg = tcp.recv(8)
 		msg = struct.unpack('!8s', msg)[0]
 		sync = bytearray([220, 192, 35, 194])
-		msg = base64.b16decode(msg)
+		msg = base64.b16decode(msg, True)
 		if(sync != msg):
 			continue
 		
 		msg = tcp.recv(8)
 		msg = struct.unpack('!8s', msg)[0]
-		msg = base64.b16decode(msg)
+		msg = base64.b16decode(msg, True)
 		if(sync == msg):
 			sync[4:] = sync[:]
 			ret, check = receiveframe(sync)
