@@ -63,21 +63,24 @@ def changeConfToSent(val, add):
 	finally:
 		lockconfToSent.release()
 
+def carry_around_add(a, b):
+	c = a + b
+	return(c &0xffff)+(c >>16)
+
 def calcChecksum(frame):
 	checksum = 0
 	d = 0
 	for b in range(len(frame)//2):
-		checksum += frame[b*2]*(256) + frame[b*2 + 1]
-		checksum = checksum if(checksum//(2**16) == 0) else checksum%(2**16) +1
+		w = frame[b*2]*(256) + frame[b*2 + 1]
+		checksum = carry_around_add(checksum, w)
 	if(len(frame)%2 != 0):
-	  checksum += frame[len(frame)-1]*256
-	  checksum = checksum if(checksum//(2**16) == 0) else checksum%(2**16) +1
-	
+	  w = frame[len(frame)-1]*256
+	  checksum = carry_around_add(checksum, w)
 	checksum = checksum ^ 0xffff
 	frame[10:11] = bytearray([checksum//256])
 	frame[11:12] = bytearray([checksum%256])
 
-    	return frame[:]
+	return frame[:]
 
 
 def createFrame(msg, id, flag):
@@ -89,7 +92,7 @@ def createFrame(msg, id, flag):
 	frame[13:] = bytearray([0]) if(flag == 0) else bytearray([128])
 	if(msg != ""):
 		frame[14:] = msg[:]
-	
+
 	frame = calcChecksum(frame)
 	return frame[:]
 
@@ -114,7 +117,7 @@ def sent(tcp, infile):
 			else:
 				tcp.send(lastFrameSent)
 			passedTime = time.clock()
-		
+
 		elif(confirmReceived == 1 and eof == 0):
 			msg = infile.read(2**16 - 1)
 			if(msg != ""):
@@ -127,7 +130,7 @@ def sent(tcp, infile):
 			if(len(msg) < 2**16 - 1):
 				eof = 1
 			passedTime = time.clock()
-		
+
 		if(sendConfirm > 0):
 			aux = changeConfToSent(0, None)
 			frame = createFrame("", aux, 1)
@@ -140,14 +143,14 @@ def receiveframe(sync):
 	msg = base64.b16decode(msg, True)
 	sync[8:] = msg
 	length = sync[8]*256 + sync[9]
-	
+
 	msg = tcp.recv(length*2) # receiving data
 	while(len(msg) != 2*length):
 		msg =  msg + tcp.recv(length*2 - len(msg)) # concat missing parts
 	msg = struct.unpack('!'+ str(2*length) +'s', msg)[0]
 	msg = base64.b16decode(msg, True)
 	sync[14:] = msg
-	
+
 	backcheck = sync[10:12]
 	sync = calcChecksum(sync)
 	if (sync[10] == 0 and sync[11] == 0):
@@ -166,7 +169,7 @@ def receive(tcp, outfile):
 		msg = base64.b16decode(msg, True)
 		if(sync != msg):
 			continue
-		
+
 		msg = tcp.recv(8)
 		msg = struct.unpack('!8s', msg)[0]
 		msg = base64.b16decode(msg, True)
