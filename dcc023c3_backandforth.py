@@ -107,7 +107,7 @@ def sent(tcp, infile):
 		if((time.clock() - passedTime) >= 1.0 and confirmReceived == 0): # if hasn't received confirmation and timesout
 			if(lastFrameSent is None): # only in the first time
 				msg = infile.read(2**16 - 1)
-				if(msg != ""):
+				if(len(msg) != 0):
 					frame = createFrame(msg, idsend, 0)
 					frame = base64.b16encode(frame)
 					lastFrameSent = frame
@@ -120,7 +120,7 @@ def sent(tcp, infile):
 
 		elif(confirmReceived == 1 and eof == 0):
 			msg = infile.read(2**16 - 1)
-			if(msg != ""):
+			if(len(msg) != 0):
 				setIdsend()
 				setConf(0)
 				frame = createFrame(msg, idsend, 0)
