@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import socket, struct, threading, sys, base64, time
+import socket, struct, threading, sys, base64, time, binascii
 
 mode = sys.argv[1]
 infile = open(sys.argv[3], 'rb')
@@ -116,7 +116,8 @@ def sent(tcp, infile):
 				msg = infile.read(2**16 - 1)
 				if(len(msg) != 0):
 					frame = createFrame(msg, idsend, 0)
-					frame = base64.b16encode(frame)
+					frame = binascii.hexlify(bytearray(frame))
+					#frame = frame.encode('ascii', 'replace')
 					lastFrameSent = frame
 					tcp.send(frame)
 				if(len(msg) < 2**16 - 1):
@@ -131,7 +132,8 @@ def sent(tcp, infile):
 				setIdsend()
 				setConf(0)
 				frame = createFrame(msg, idsend, 0)
-				frame = base64.b16encode(frame)
+				frame = binascii.hexlify(bytearray(frame))
+				#frame = frame.encode('ascii', 'replace')
 				lastFrameSent = frame
 				tcp.send(frame)
 			if(len(msg) < 2**16 - 1):
@@ -141,11 +143,14 @@ def sent(tcp, infile):
 		if(sendConfirm > 0):
 			aux = changeConfToSent(0, None)
 			frame = createFrame("", aux, 1)
-			frame = base64.b16encode(frame)
+			frame = binascii.hexlify(bytearray(frame))
+			#frame = frame.encode('ascii', 'replace')
 			tcp.send(frame)
 
 def receiveframe(sync):
-	msg = tcp.recv(12) # recebendo resto do cabeçalho
+	msg = tcp.recv(12)
+	while len(msg) != 12:
+		msg = msg + tcp.recv(12 -len(msg))# recebendo resto do cabeçalho
 	msg = struct.unpack('!12s', msg)[0]
 	msg = base64.b16decode(msg, True)
 	sync[8:] = msg
@@ -171,6 +176,8 @@ def receive(tcp, outfile):
 
 	while True:
 		msg = tcp.recv(8)
+		while len(msg) != 8:
+			msg = msg + tcp.recv(8 - len(msg))
 		msg = struct.unpack('!8s', msg)[0]
 		sync = bytearray([220, 192, 35, 194])
 		msg = base64.b16decode(msg, True)
@@ -178,6 +185,8 @@ def receive(tcp, outfile):
 			continue
 
 		msg = tcp.recv(8)
+		while len(msg) != 8:
+			msg = msg + tcp.recv(8 - len(msg))
 		msg = struct.unpack('!8s', msg)[0]
 		msg = base64.b16decode(msg, True)
 		if(sync == msg):
