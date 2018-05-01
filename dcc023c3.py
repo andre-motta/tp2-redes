@@ -116,12 +116,18 @@ def sent(tcp, infile):
 					frame = createFrame(msg, idsend, 0)
 					frame = binascii.hexlify(bytearray(frame))
 					lastFrameSent = frame
-					tcp.send(frame)
+					try:
+						tcp.send(frame)
+					except:
+						sys.exit(0)
 				if(len(msg) < 2**16 - 1):
 					eof = 1
 					infile.close()
 			else:
-				tcp.send(lastFrameSent)
+				try:
+					tcp.send(lastFrameSent)
+				except:
+					sys.exit(0)
 			passedTime = time.clock()
 
 		elif(confirmReceived == 1 and eof == 0):
@@ -132,7 +138,10 @@ def sent(tcp, infile):
 				frame = createFrame(msg, idsend, 0)
 				frame = binascii.hexlify(bytearray(frame))
 				lastFrameSent = frame
-				tcp.send(frame)
+				try:
+					tcp.send(frame)
+				except:
+					sys.exit(0)
 			if(len(msg) < 2**16 - 1):
 				eof = 1
 				infile.close()
@@ -142,13 +151,19 @@ def sent(tcp, infile):
 			aux = changeConfToSent(0, None)
 			frame = createFrame("", aux, 1)
 			frame = binascii.hexlify(bytearray(frame))
-			tcp.send(frame)
+			try:
+				tcp.send(frame)
+			except:
+				sys.exit(0)
 
 def receiveframe(sync):
-	msg = tcp.recv(12) # recebendo resto do cabeçalho
-	while(len(msg) != 12):
-		msg = msg + tcp.recv(12 - len(msg))
-	msg = struct.unpack('!12s', msg)[0]
+	try:
+		msg = tcp.recv(12) # recebendo resto do cabeçalho
+		while(len(msg) != 12):
+			msg = msg + tcp.recv(12 - len(msg))
+		msg = struct.unpack('!12s', msg)[0]
+	except:
+		sys.exit(0)
 	try:
 		msg = base64.b16decode(msg, True)
 	except:
@@ -156,10 +171,12 @@ def receiveframe(sync):
 
 	sync[8:] = msg
 	length = sync[8]*256 + sync[9]
-
-	msg = tcp.recv(length*2) # receiving data
-	while(len(msg) != 2*length):
-		msg =  msg + tcp.recv(length*2 - len(msg)) # concat missing parts
+	try:
+		msg = tcp.recv(length*2) # receiving data
+		while(len(msg) != 2*length):
+			msg =  msg + tcp.recv(length*2 - len(msg)) # concat missing parts
+	except:
+		sys.exit(0)
 	msg = struct.unpack('!'+ str(2*length) +'s', msg)[0]
 
 	try:
@@ -181,9 +198,12 @@ def receive(tcp, outfile):
 	ackReceived = 1
 
 	while True:
-		msg = tcp.recv(8)
-		while(len(msg) != 8):
-			msg = msg + tcp.recv(8 - len(msg))
+		try:
+			msg = tcp.recv(8)
+			while(len(msg) != 8):
+				msg = msg + tcp.recv(8 - len(msg))
+		except:
+			sys.exit(0)
 		msg = struct.unpack('!8s', msg)[0]
 		sync = bytearray([220, 192, 35, 194])
 		try:
@@ -194,9 +214,12 @@ def receive(tcp, outfile):
 		if(sync != msg):
 			continue
 
-		msg = tcp.recv(8)
-		while(len(msg) != 8):
-			msg = msg + tcp.recv(8 - len(msg))
+		try:
+			msg = tcp.recv(8)
+			while(len(msg) != 8):
+				msg = msg + tcp.recv(8 - len(msg))
+		except:
+			sys.exit(0)
 		msg = struct.unpack('!8s', msg)[0]
 		try:
 			msg = base64.b16decode(msg, True)
