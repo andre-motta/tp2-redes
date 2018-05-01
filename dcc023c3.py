@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import socket, struct, threading, sys, base64, time
+import socket, struct, threading, sys, base64, time, binascii
 
 mode = sys.argv[1]
 infile = open(sys.argv[3], 'rb')
@@ -114,7 +114,7 @@ def sent(tcp, infile):
 				msg = infile.read(2**16 - 1)
 				if(len(msg) != 0):
 					frame = createFrame(msg, idsend, 0)
-					frame = base64.b16encode(frame)
+					frame = binascii.hexlify(bytearray(frame))
 					lastFrameSent = frame
 					tcp.send(frame)
 				if(len(msg) < 2**16 - 1):
@@ -130,7 +130,7 @@ def sent(tcp, infile):
 				setIdsend()
 				setConf(0)
 				frame = createFrame(msg, idsend, 0)
-				frame = base64.b16encode(frame)
+				frame = binascii.hexlify(bytearray(frame))
 				lastFrameSent = frame
 				tcp.send(frame)
 			if(len(msg) < 2**16 - 1):
@@ -141,7 +141,7 @@ def sent(tcp, infile):
 		if(sendConfirm > 0):
 			aux = changeConfToSent(0, None)
 			frame = createFrame("", aux, 1)
-			frame = base64.b16encode(frame)
+			frame = binascii.hexlify(bytearray(frame))
 			tcp.send(frame)
 
 def receiveframe(sync):
