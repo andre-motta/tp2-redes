@@ -67,16 +67,21 @@ def carry_around_add(a, b):
 	c = a + b
 	return(c &0xffff)+(c >>16)
 
+def checksumC(msg):
+    s = 0
+    appended = False
+    if len(msg)%2 != 0:
+        msg.append(0)
+        appended = True
+    for i in range(0, len(msg),2):
+        w =(msg[i]<<8)+((msg[i+1]))
+        s = carry_around_add(s, w)
+    if appended:
+        msg.pop()
+    return ~s &0xffff
+
 def calcChecksum(frame):
-	checksum = 0
-	d = 0
-	for b in range(len(frame)//2):
-		w = frame[b*2]*(256) + frame[b*2 + 1]
-		checksum = carry_around_add(checksum, w)
-	if(len(frame)%2 != 0):
-	  w = frame[len(frame)-1]*256
-	  checksum = carry_around_add(checksum, w)
-	checksum = checksum ^ 0xffff
+	checksum = checksumC(frame)
 	frame[10:11] = bytearray([checksum//256])
 	frame[11:12] = bytearray([checksum%256])
 

@@ -78,7 +78,7 @@ def checksumC(msg):
         s = carry_around_add(s, w)
     if appended:
         msg.pop()
-    return~s &0xffff
+    return ~s &0xffff
 
 def calcChecksum(frame):
 	checksum = 0
