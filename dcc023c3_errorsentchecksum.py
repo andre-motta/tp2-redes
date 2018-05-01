@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import socket, struct, threading, sys, base64, time, random
+import socket, struct, threading, sys, base64, time, binascii, random
 
 mode = sys.argv[1]
 infile = open(sys.argv[3], 'rb')
 outfile = open(sys.argv[4], 'wb')
 
-if (mode == "-c"):
-    HOST = sys.argv[2][0: sys.argv[2].find(':')]
+if(mode == "-c"):
+    HOST = sys.argv[2][0 : sys.argv[2].find(':')]
     PORT = int(sys.argv[2][sys.argv[2].find(':') + 1:])
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     dest = (HOST, PORT)
@@ -20,25 +20,24 @@ else:
     tcp.listen(1)
     tcp, address = tcp.accept()
 
-idsend = 0  # id of what is being sent now
-sendConfirm = 0  # amount of confirms that must be sent
+
+idsend = 0 #id of what is being sent now
+sendConfirm = 0 # amount of confirms that must be sent
 confirmsToSent = []
-confirmReceived = 0  # confirm of a given package has been received
-lastIdReceived = 1  # last data id received
+confirmReceived = 0 #confirm of a given package has been received
+lastIdReceived = 1 #last data id received
 
 lockidsend = threading.Lock()
 lockconf = threading.Lock()
 lockconfToSent = threading.Lock()
 
-
 def setIdsend():
     global idsend
     lockidsend.acquire()
     try:
-        idsend = (idsend + 1) % 2
+        idsend = (idsend+1)%2
     finally:
         lockidsend.release()
-
 
 def setConf(val):
     global confirmReceived
@@ -48,15 +47,14 @@ def setConf(val):
     finally:
         lockconf.release()
 
-
 def changeConfToSent(val, add):
     global confirmsToSent
     global sendConfirm
     lockconfToSent.acquire()
     try:
-        if (val == 0):
+        if(val == 0):
             aux = confirmsToSent.pop(0)
-            sendConfirm = sendConfirm - 1
+            sendConfirm =  sendConfirm - 1
             return aux
         else:
             confirmsToSent.append(add)
@@ -65,10 +63,9 @@ def changeConfToSent(val, add):
     finally:
         lockconfToSent.release()
 
-
 def carry_around_add(a, b):
-	c = a + b
-	return(c &0xffff)+(c >>16)
+    c = a + b
+    return(c &0xffff)+(c >>16)
 
 def checksumC(msg):
     s =0
@@ -81,35 +78,16 @@ def checksumC(msg):
         s = carry_around_add(s, w)
     if appended:
         msg.pop()
-    randomNumber = random.randint(1, 6)
-    if randomNumber == 6:
-        s = s
-    else:
-        s = s ^ 0xfffa
-    return~s &0xffff
-
-def calcChecksum(frame):
-	checksum = 0
-	d = 0
-	checksum = checksumC(frame)
-	frame[10:11] = bytearray([checksum//256])
-	frame[11:12] = bytearray([checksum%256])
-
-	return frame[:]
+    return ~s &0xffff
 
 def calcChecksum(frame):
     checksum = 0
     d = 0
-    for b in range(len(frame) // 2):
-        checksum += frame[b * 2] * (256) + frame[b * 2 + 1]
-        checksum = checksum if (checksum // (2 ** 16) == 0) else checksum % (2 ** 16) + 1
-    if (len(frame) % 2 != 0):
-        checksum += frame[len(frame) - 1] * 256
-        checksum = checksum if (checksum // (2 ** 16) == 0) else checksum % (2 ** 16) + 1
-
-
-    frame[10:11] = bytearray([checksum // 256])
-    frame[11:12] = bytearray([checksum % 256])
+    randomNumber = random.randint(1,6)
+    if randomNumber == 6:
+        checksum = checksumC(frame)
+    frame[10:11] = bytearray([checksum//256])
+    frame[11:12] = bytearray([checksum%256])
 
     return frame[:]
 
@@ -117,69 +95,73 @@ def calcChecksum(frame):
 def createFrame(msg, id, flag):
     frame = bytearray([220, 192, 35, 194])
     frame[4:] = frame[:]
-    frame[8:] = bytearray([0, 0]) if (msg == "") else bytearray([len(msg) // 256, len(msg) % 256])
+    frame[8:] = bytearray([0,0]) if(msg == "") else bytearray([len(msg)//256, len(msg)%256])
     frame[10:] = bytearray([0, 0])
-    frame[12:] = bytearray([0]) if (id == 0) else bytearray([1])
-    frame[13:] = bytearray([0]) if (flag == 0) else bytearray([128])
-    if (msg != ""):
+    frame[12:] = bytearray([0]) if(id == 0) else bytearray([1])
+    frame[13:] = bytearray([0]) if(flag == 0) else bytearray([128])
+    if(msg != ""):
         frame[14:] = msg[:]
 
     frame = calcChecksum(frame)
     return frame[:]
 
 
+
 def sent(tcp, infile):
     lastFrameSent = None
     passedTime = time.clock() - 1.0
-    eof = 0  # indicates that the file has ended
+    eof = 0 #indicates that the file has ended
 
     while True:
-        if ((
-                time.clock() - passedTime) >= 1.0 and confirmReceived == 0):  # if hasn't received confirmation and timesout
-            if (lastFrameSent is None):  # only in the first time
-                msg = infile.read(2 ** 16 - 1)
-                if (msg != ""):
+        if((time.clock() - passedTime) >= 1.0 and confirmReceived == 0): # if hasn't received confirmation and timesout
+            if(lastFrameSent is None): # only in the first time
+                msg = infile.read(2**16 - 1)
+                if(len(msg) != 0):
                     frame = createFrame(msg, idsend, 0)
-                    frame = base64.b16encode(frame)
+                    frame = binascii.hexlify(bytearray(frame))
+                    #frame = frame.encode('ascii', 'replace')
                     lastFrameSent = frame
                     tcp.send(frame)
-                if (len(msg) < 2 ** 16 - 1):
+                if(len(msg) < 2**16 - 1):
                     eof = 1
             else:
                 tcp.send(lastFrameSent)
             passedTime = time.clock()
 
-        elif (confirmReceived == 1 and eof == 0):
-            msg = infile.read(2 ** 16 - 1)
-            if (msg != ""):
+        elif(confirmReceived == 1 and eof == 0):
+            msg = infile.read(2**16 - 1)
+            if(len(msg) != 0):
                 setIdsend()
                 setConf(0)
                 frame = createFrame(msg, idsend, 0)
-                frame = base64.b16encode(frame)
+                frame = binascii.hexlify(bytearray(frame))
+                #frame = frame.encode('ascii', 'replace')
                 lastFrameSent = frame
                 tcp.send(frame)
-            if (len(msg) < 2 ** 16 - 1):
+            if(len(msg) < 2**16 - 1):
                 eof = 1
             passedTime = time.clock()
 
-        if (sendConfirm > 0):
+        if(sendConfirm > 0):
             aux = changeConfToSent(0, None)
             frame = createFrame("", aux, 1)
-            frame = base64.b16encode(frame)
+            frame = binascii.hexlify(bytearray(frame))
+            #frame = frame.encode('ascii', 'replace')
             tcp.send(frame)
 
-
 def receiveframe(sync):
-    msg = tcp.recv(12)  # recebendo resto do cabeçalho
+    msg = tcp.recv(12)
+    while len(msg) != 12:
+        msg = msg + tcp.recv(12 -len(msg))# recebendo resto do cabeçalho
     msg = struct.unpack('!12s', msg)[0]
     msg = base64.b16decode(msg, True)
     sync[8:] = msg
-    length = sync[8] * 256 + sync[9]
+    length = sync[8]*256 + sync[9]
 
-    msg = tcp.recv(length * 2)  # receiving data
-    while (len(msg) != 2 * length):
-        msg = msg + tcp.recv(length * 2 - len(msg))  # concat missing parts
-    msg = struct.unpack('!' + str(2 * length) + 's', msg)[0]
+    msg = tcp.recv(length*2) # receiving data
+    while(len(msg) != 2*length):
+        msg =  msg + tcp.recv(length*2 - len(msg)) # concat missing parts
+    msg = struct.unpack('!'+ str(2*length) +'s', msg)[0]
     msg = base64.b16decode(msg, True)
     sync[14:] = msg
 
@@ -191,43 +173,46 @@ def receiveframe(sync):
 
 
 def receive(tcp, outfile):
-    lastPackReceived = None  # id and checksum from last package received
+    lastPackReceived = None # id and checksum from last package received
     ackReceived = 1
 
     while True:
         msg = tcp.recv(8)
+        while len(msg) != 8:
+            msg = msg + tcp.recv(8 - len(msg))
         msg = struct.unpack('!8s', msg)[0]
         sync = bytearray([220, 192, 35, 194])
-        msg = base64.b16decode(msg)
-        if (sync != msg):
+        msg = base64.b16decode(msg, True)
+        if(sync != msg):
             continue
 
         msg = tcp.recv(8)
+        while len(msg) != 8:
+            msg = msg + tcp.recv(8 - len(msg))
         msg = struct.unpack('!8s', msg)[0]
-        msg = base64.b16decode(msg)
-        if (sync == msg):
+        msg = base64.b16decode(msg, True)
+        if(sync == msg):
             sync[4:] = sync[:]
             ret, check = receiveframe(sync)
 
-            if (check != False):  # checksum is valid
-                if (ret[13] == 128):  # if it's ack
-                    if (ret[12] != ackReceived):  # hasn't received this package confirmation yet
+            if(check != False): # checksum is valid
+                if(ret[13] == 128):# if it's ack
+                    if(ret[12] != ackReceived): # hasn't received this package confirmation yet
                         setConf(1)
                         ackReceived = ret[12]
-                else:  # if it's data
-                    if (lastPackReceived is None):  # hasn't receveid a package yet
+                else: # if it's data
+                    if(lastPackReceived is None): #hasn't receveid a package yet
                         changeConfToSent(1, sync[12])
                         lastPackReceived = [sync[12], sync[10:12]]
                         outfile.write(sync[14:])
                         outfile.flush()
-                    elif (sync[12] == lastPackReceived[0] and sync[10:12] == lastPackReceived[1]):  # retransmission
+                    elif(sync[12] == lastPackReceived[0] and sync[10:12] == lastPackReceived[1]): # retransmission
                         changeConfToSent(1, sync[12])
-                    else:  # new package
+                    elif(sync[12] != lastPackReceived[0]): # new package
                         changeConfToSent(1, sync[12])
                         lastPackReceived = [sync[12], sync[10:12]]
                         outfile.write(sync[14:])
                         outfile.flush()
 
-
-threading.Thread(target=receive, args=(tcp, outfile,)).start()
-threading.Thread(target=sent, args=(tcp, infile,)).start()
+threading.Thread(target = receive, args = (tcp, outfile, )).start()
+threading.Thread(target = sent, args = (tcp, infile, )).start()
