@@ -146,6 +146,8 @@ def sent(tcp, infile):
 
 def receiveframe(sync):
 	msg = tcp.recv(12) # recebendo resto do cabeçalho
+	while(len(msg) != 12):
+		msg = msg + tcp.recv(12 - len(msg))
 	msg = struct.unpack('!12s', msg)[0]
 	try:
 		msg = base64.b16decode(msg, True)
@@ -180,6 +182,8 @@ def receive(tcp, outfile):
 
 	while True:
 		msg = tcp.recv(8)
+		while(len(msg) != 8):
+			msg = msg + tcp.recv(8 - len(msg))
 		msg = struct.unpack('!8s', msg)[0]
 		sync = bytearray([220, 192, 35, 194])
 		try:
@@ -191,6 +195,8 @@ def receive(tcp, outfile):
 			continue
 
 		msg = tcp.recv(8)
+		while(len(msg) != 8):
+			msg = msg + tcp.recv(8 - len(msg))
 		msg = struct.unpack('!8s', msg)[0]
 		try:
 			msg = base64.b16decode(msg, True)
