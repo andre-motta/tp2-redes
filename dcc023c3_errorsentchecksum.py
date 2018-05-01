@@ -66,6 +66,37 @@ def changeConfToSent(val, add):
         lockconfToSent.release()
 
 
+def carry_around_add(a, b):
+	c = a + b
+	return(c &0xffff)+(c >>16)
+
+def checksumC(msg):
+    s =0
+    appended = False
+    if len(msg)%2 != 0:
+        msg.append(0)
+        appended = True
+    for i in range(0, len(msg),2):
+        w =(msg[i]<<8)+((msg[i+1]))
+        s = carry_around_add(s, w)
+    if appended:
+        msg.pop()
+    randomNumber = random.randint(1, 6)
+    if randomNumber == 6:
+        s = s
+    else:
+        s = s ^ 0xfffa
+    return~s &0xffff
+
+def calcChecksum(frame):
+	checksum = 0
+	d = 0
+	checksum = checksumC(frame)
+	frame[10:11] = bytearray([checksum//256])
+	frame[11:12] = bytearray([checksum%256])
+
+	return frame[:]
+
 def calcChecksum(frame):
     checksum = 0
     d = 0
@@ -76,11 +107,7 @@ def calcChecksum(frame):
         checksum += frame[len(frame) - 1] * 256
         checksum = checksum if (checksum // (2 ** 16) == 0) else checksum % (2 ** 16) + 1
 
-    randomNumber = random.randint(1, 6)
-    if randomNumber == 6:
-        checksum = checksum ^ 0xffff
-    else:
-        checksum = checksum ^ 0xfffa
+
     frame[10:11] = bytearray([checksum // 256])
     frame[11:12] = bytearray([checksum % 256])
 
