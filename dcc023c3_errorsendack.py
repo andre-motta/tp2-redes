@@ -150,6 +150,7 @@ def sent(tcp, infile):
             randomNumber += 1
             if randomNumber == 3:
                 tcp.send(frame)
+                randomNumber= 0
 
 def receiveframe(sync):
     msg = tcp.recv(12)
