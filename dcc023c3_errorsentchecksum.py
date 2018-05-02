@@ -87,6 +87,7 @@ def calcChecksum(frame):
     randomNumber += 1
     if randomNumber == 3:
         checksum = checksumC(frame)
+        randomNumber = 0
     frame[10:11] = bytearray([checksum//256])
     frame[11:12] = bytearray([checksum%256])
 
