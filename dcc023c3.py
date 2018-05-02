@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import socket, struct, threading, sys, base64, time, binascii
+import socket, struct, threading, sys, base64, time, binascii, os
 
 mode = sys.argv[1]
 infile = open(sys.argv[3], 'rb')
@@ -119,7 +119,7 @@ def sent(tcp, infile):
 					try:
 						tcp.send(frame)
 					except:
-						sys.exit(0)
+						os._exit(3)
 				if(len(msg) < 2**16 - 1):
 					eof = 1
 					infile.close()
@@ -127,7 +127,7 @@ def sent(tcp, infile):
 				try:
 					tcp.send(lastFrameSent)
 				except:
-					sys.exit(0)
+					os._exit(3)
 			passedTime = time.clock()
 
 		elif(confirmReceived == 1 and eof == 0):
@@ -141,7 +141,7 @@ def sent(tcp, infile):
 				try:
 					tcp.send(frame)
 				except:
-					sys.exit(0)
+					os._exit(3)
 			if(len(msg) < 2**16 - 1):
 				eof = 1
 				infile.close()
@@ -154,7 +154,7 @@ def sent(tcp, infile):
 			try:
 				tcp.send(frame)
 			except:
-				sys.exit(0)
+				os._exit(3)
 
 def receiveframe(sync):
 	try:
@@ -163,7 +163,7 @@ def receiveframe(sync):
 			msg = msg + tcp.recv(12 - len(msg))
 		msg = struct.unpack('!12s', msg)[0]
 	except:
-		sys.exit(0)
+		os._exit(3)
 	try:
 		msg = base64.b16decode(msg, True)
 	except:
@@ -176,7 +176,7 @@ def receiveframe(sync):
 		while(len(msg) != 2*length):
 			msg =  msg + tcp.recv(length*2 - len(msg)) # concat missing parts
 	except:
-		sys.exit(0)
+		os._exit(0)
 	msg = struct.unpack('!'+ str(2*length) +'s', msg)[0]
 
 	try:
@@ -203,7 +203,7 @@ def receive(tcp, outfile):
 			while(len(msg) != 8):
 				msg = msg + tcp.recv(8 - len(msg))
 		except:
-			sys.exit(0)
+			os._exit(3)
 		msg = struct.unpack('!8s', msg)[0]
 		sync = bytearray([220, 192, 35, 194])
 		try:
@@ -219,7 +219,7 @@ def receive(tcp, outfile):
 			while(len(msg) != 8):
 				msg = msg + tcp.recv(8 - len(msg))
 		except:
-			sys.exit(0)
+			os._exit(3)
 		msg = struct.unpack('!8s', msg)[0]
 		try:
 			msg = base64.b16decode(msg, True)
