@@ -98,6 +98,7 @@ def createFrame(msg, id, flag):
     randomNumber += 1
     if randomNumber == 3:
         frame[8:] = bytearray([0, 0]) if (msg == "") else bytearray([len(msg) // 256, len(msg) % 256])
+        randomNumber = 0
     else:
         frame[8:] = bytearray([0, 0]) if (msg == "") else bytearray([len(msg) // 256, len(msg) % 128])
     frame[10:] = bytearray([0, 0])
