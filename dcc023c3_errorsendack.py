@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import socket, struct, threading, sys, base64, time, binascii, random
 
+randomNumber = 0
 mode = sys.argv[1]
 infile = open(sys.argv[3], 'rb')
 outfile = open(sys.argv[4], 'wb')
@@ -145,8 +146,9 @@ def sent(tcp, infile):
             frame = createFrame("", aux, 1)
             frame = binascii.hexlify(bytearray(frame))
             #frame = frame.encode('ascii', 'replace')
-            randomNumber = random.randint(1, 6)
-            if randomNumber == 6:
+            global randomNumber
+            randomNumber += 1
+            if randomNumber == 3:
                 tcp.send(frame)
 
 def receiveframe(sync):

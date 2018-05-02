@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import socket, struct, threading, sys, base64, time, binascii, random
-
+randomNumber = 0
 mode = sys.argv[1]
 infile = open(sys.argv[3], 'rb')
 outfile = open(sys.argv[4], 'wb')
@@ -82,9 +82,10 @@ def checksumC(msg):
 
 def calcChecksum(frame):
     checksum = 0
+    global randomNumber
     d = 0
-    randomNumber = random.randint(1,6)
-    if randomNumber == 6:
+    randomNumber += 1
+    if randomNumber == 3:
         checksum = checksumC(frame)
     frame[10:11] = bytearray([checksum//256])
     frame[11:12] = bytearray([checksum%256])
